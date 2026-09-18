@@ -1,6 +1,11 @@
 import speech_recognition as sr
-from memory import remember, recall
 
+from memory import remember, recall, load_memory, save_memory
+from ai import ask_ai
+from voice import speak
+
+
+# Create the speech recognizer
 recognizer = sr.Recognizer()
 
 
@@ -11,11 +16,12 @@ def listen():
         audio = recognizer.listen(source)
 
     try:
+        # Convert recorded voice into text
         text = recognizer.recognize_google(audio)
         return text
 
     except sr.UnknownValueError:
-        print("SWITCH couldn't understand you.")
+        # Don't say anything if speech wasn't understood
         return None
 
     except sr.RequestError as error:
@@ -23,10 +29,15 @@ def listen():
         return None
 
 
-## This is where SWITCH will decide what to do with what you said. ##
+# Decide what SWITCH should do with the user's command
 def process_command(text):
+
     text = text.lower()
 
+
+    # ---------------- MEMORY COMMANDS ----------------
+
+    # Forget something
     if text.startswith("forget my "):
         key = text.replace("forget my ", "").strip()
 
@@ -35,60 +46,108 @@ def process_command(text):
         if key in memory:
             del memory[key]
             save_memory(memory)
-            print(f"I forgot your {key}.")
-        else:
-            print(f"I don't remember your {key}.")
 
+            response = f"I forgot your {key}."
+        else:
+            response = f"I don't remember your {key}."
+
+
+    # Remember user's name
     elif "my name is" in text:
         name = text.replace("my name is", "").strip()
-        remember("name", name)
-        print(f"I'll remember that your name is {name}.")
 
+        remember("name", name)
+
+        response = f"I'll remember that your name is {name}."
+
+
+    # Remember something like:
+    # "my favourite bike is CB1100"
     elif text.startswith("my ") and " is " in text:
         information = text[3:]
+
         key, value = information.split(" is ", 1)
 
         remember(key.strip(), value.strip())
-        print(f"I'll remember that your {key.strip()} is {value.strip()}.")
 
+        response = f"I'll remember that your {key.strip()} is {value.strip()}."
+
+
+    # Remember something like:
+    # "remember that my favourite colour is blue"
     elif "remember that" in text:
         information = text.replace("remember that", "").strip()
 
         if " is " in information:
             key, value = information.split(" is ", 1)
-            remember(key.strip(), value.strip())
-            print(f"I'll remember that your {key.strip()} is {value.strip()}.")
-        else:
-            print("Tell me what you want me to remember.")
 
+            remember(key.strip(), value.strip())
+
+            response = f"I'll remember that your {key.strip()} is {value.strip()}."
+        else:
+            response = "Tell me what you want me to remember."
+
+
+    # ---------------- RECALL COMMANDS ----------------
+
+    # Recall name
     elif "what is my name" in text or "what's my name" in text:
         name = recall("name")
 
         if name:
-            print(f"Your name is {name}.")
+            response = f"Your name is {name}."
         else:
-            print("I don't know your name yet.")
+            response = "I don't know your name yet."
 
+
+    # Recall other memories
     elif "what is my" in text:
         key = text.replace("what is my", "").strip()
+
         value = recall(key)
 
         if value:
-            print(f"Your {key} is {value}.")
+            response = f"Your {key} is {value}."
         else:
-            print(f"I don't remember your {key}.")
+            response = f"I don't remember your {key}."
+
+
+    # ---------------- AI COMMANDS ----------------
 
     else:
-        print("You said:", text)
+        # Load long-term memory
+        memory = load_memory()
+
+        # Ask the AI
+        response = ask_ai(text, memory)
 
 
-# Keep SWITCH running until the user says "exit"
+    # Show SWITCH's response
+    print("SWITCH:", response)
+
+    # Speak SWITCH's response
+    speak(response)
+
+
+# ---------------- MAIN LOOP ----------------
+
 while True:
+
+    # Listen to the user
     text = listen()
 
-    if text and text.lower() == "exit":
+    # If nothing understandable was heard,
+    # listen again silently
+    if not text:
+        continue
+
+
+    # Shutdown command
+    if text.lower() == "exit":
+        speak("Goodbye.")
         print("SWITCH is shutting down.")
         break
 
-    if text:
-        process_command(text)
+
+    # Process the command
+    process_command(text)
