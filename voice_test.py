@@ -1,10 +1,21 @@
-from voice import speak
+import asyncio
+import edge_tts
 
-print("Test 1")
-speak("This is test one.")
 
-print("Test 2")
-speak("This is test two.")
+async def main():
 
-print("Test 3")
-speak("This is test three.")
+    text = "Hey Sam. How's your day going?"
+
+    voice = "en-US-AriaNeural"
+
+    communicate = edge_tts.Communicate(
+        text,
+        voice
+    )
+
+    await communicate.save("voice_test.mp3")
+
+
+asyncio.run(main())
+
+print("Voice test created.")
